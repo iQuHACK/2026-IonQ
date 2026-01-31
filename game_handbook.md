@@ -44,12 +44,47 @@ The following rules are applied:
    - **Classical communication allowed**: Feedforward gates can condition on measurement results from either side (e.g., Bob can apply X on his qubit if Alice's measurement result was 1).
 
 10. **Flag-based post-selection**: Players specify a `flag_bit` index. The server simulates all measurement outcomes and keeps only those where the designated classical bit equals 0. This allows players to implement their own post-selection logic:
+    - For distillation, the flag should encode whether Alice's and Bob's ancilla measurements match (XOR = 0 means matching).
     - Students compute the flag value using feedforward in their circuit.
     - The server returns both the fidelity (on successful outcomes) and the success probability.
 
 11. The final state after executing the circuit is expected to be a distilled Bell pair on Qubit N-1 (Alice's side) and Qubit N (Bob's side).
 
 12. The maximum number of raw Bell pairs is 8.
+
+### Example: Flag-Based Post-Selection
+
+For N=2 Bell pairs, qubits are: Alice [0, 1], Bob [2, 3].
+- Pair 0 (ancilla): qubits 0 and 3
+- Pair 1 (output): qubits 1 and 2
+
+A basic circuit:
+```qasm
+OPENQASM 3.0;
+include "stdgates.inc";
+qubit[4] q;
+bit[3] c;
+
+// Alice's local operations
+cx q[1], q[0];         // CNOT from output to ancilla
+measure q[0] -> c[0];  // Measure Alice's ancilla
+
+// Bob's local operations
+cx q[2], q[3];         // CNOT from output to ancilla
+measure q[3] -> c[1];  // Measure Bob's ancilla
+
+// Apply corrections based on measurement outcomes
+// NOTE: OpenQASM 3.0 uses boolean conditions: if (c[0]) means "if c[0] == true"
+if (c[0]) z q[1];      // Alice correction
+if (c[1]) z q[2];      // Bob correction
+```
+
+**Important OpenQASM 3.0 Syntax Notes:**
+- Use `if (c[0])` for "if measurement was 1" (equivalent to `if (c[0] == true)`)
+- Use `if (c[0] == false)` for "if measurement was 0"
+- Do NOT use `if (c[0] == 1)` - this is OpenQASM 2.0 syntax and will fail to parse
+
+With `flag_bit = 2`, the server keeps only outcomes where `c[2] == 0`, meaning Alice and Bob measured matching results (both 0 or both 1).
 
 13. **Budget is only spent on successful claims** (failed attempts don't cost bell pairs).
 
