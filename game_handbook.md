@@ -39,11 +39,15 @@ The following rules are applied:
 
     Note that Qubit 0 to Qubit N-1 are on the source vertex (Alice's side), and Qubits N to Qubits 2N-1 are on the target vertex (Bob's side). 
 
-9. Players should submit two Qiskit circuits in the format of OpenQASM V.3 that include only LOCC for the Alice and Bob sides.
+9. Players submit a single OpenQASM 3.0 circuit for the full 2N-qubit system. The circuit must respect LOCC constraints:
+   - **Local quantum operations only**: Two-qubit gates (CNOT, CZ, SWAP) can only act on qubits within the same side (Alice: 0 to N-1, Bob: N to 2N-1). No quantum gates across the Alice/Bob boundary.
+   - **Classical communication allowed**: Feedforward gates can condition on measurement results from either side (e.g., Bob can apply X on his qubit if Alice's measurement result was 1).
 
-10. All measurements are post-selected to outcome 0 by the server (the quantum state is projected onto the |0⟩ subspace for each measured qubit and renormalized). 
+10. **Flag-based post-selection**: Players specify a `flag_bit` index. The server simulates all measurement outcomes and keeps only those where the designated classical bit equals 0. This allows players to implement their own post-selection logic:
+    - Students compute the flag value using feedforward in their circuit.
+    - The server returns both the fidelity (on successful outcomes) and the success probability.
 
-11. The final state after executing Alice and Bob circuits is expected to be a distilled Bell pair on Qubit N-1 (Alice's side) and Qubit N (Bob's side). 
+11. The final state after executing the circuit is expected to be a distilled Bell pair on Qubit N-1 (Alice's side) and Qubit N (Bob's side).
 
 12. The maximum number of raw Bell pairs is 8.
 
@@ -51,7 +55,8 @@ The following rules are applied:
 
 ### Vertex Rewards & Competition
 Vertices have a **capacity** that determines how many players can receive rewards:
-- **Claim Strength**: A weighted sum of fidelities from edges connecting to that vertex. Edges are ranked by fidelity (highest first), then weighted using square root decay: 1st edge gets full weight, 2nd gets 71%, 3rd gets 58%, 4th gets 50%, etc. (formula: fidelity / sqrt(rank)).
+- **Claim Strength**: A weighted sum of edge contributions. Each edge contributes: `fidelity × success_probability / sqrt(rank)`, where edges are ranked by fidelity (highest first). The sqrt decay gives: 1st edge gets full weight, 2nd gets 71%, 3rd gets 58%, 4th gets 50%, etc.
+- **Success Probability Factor**: Higher success probability means stronger claims. A distillation with 90% fidelity and 50% success probability contributes less than one with 85% fidelity and 100% success probability.
 - **Reward Distribution**: Only the top-capacity players (ranked by claim strength) receive the vertex's rewards.
 - **Rewards**: Utility qubits (score) and bonus bell pairs.
 
